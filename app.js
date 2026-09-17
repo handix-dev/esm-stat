@@ -264,28 +264,29 @@ async function chargerDonnees() {
     const endUrl = urlParts[3] || "";
 
     const { s1: s1Init, s2: s2Init } = ObtenirScoresMatch(matchInitial);
-    let premiereJourneeVue = parseInt(matchInitial.rematch?.rencontre?.journeeNumero, 10) || 0;
-    let maxJourneeJouee = (s1Init > 0 || s2Init > 0) ? premiereJourneeVue : 0;
+    let zeroScoreConsecutifs = (s1Init === 0 && s2Init === 0) ? 1 : 0;
 
     // SCAN VERS L'AVANT
     let err = 0, currentId = baseId + 1;
-    while (err < 2) {
+    while (err < 3) {
       const data = await fetchMatch(`${baseUrl}${currentId}${endUrl}`);
       if (data) {
         const { s1, s2 } = ObtenirScoresMatch(data);
-        const jNum = parseInt(data.rematch?.rencontre?.journeeNumero, 10) || 0;
 
-        if (s1 > 0 || s2 > 0) {
-          maxJourneeJouee = Math.max(maxJourneeJouee, jNum);
+        // Compteur de scores 0-0 consécutifs
+        if (s1 === 0 && s2 === 0) {
+          zeroScoreConsecutifs++;
         } else {
-          let limitJournee = maxJourneeJouee > 0 ? maxJourneeJouee + 1 : premiereJourneeVue;
-          if (jNum > limitJournee) {
-            break;
-          }
+          zeroScoreConsecutifs = 0;
         }
-        
+
         listeMatchsPoule.push(data);
-        err = 0;
+        err = 0; // Réinitialiser le compteur d'erreurs 404
+
+        // Arrêt si 6 matchs consécutifs sont à 0-0
+        if (zeroScoreConsecutifs >= 6) {
+          break;
+        }
       } else { 
         err++; 
       }
@@ -293,12 +294,29 @@ async function chargerDonnees() {
     }
 
     // SCAN VERS L'ARRIÈRE
-    err = 0; currentId = baseId - 1;
-    while (err < 2 && currentId > 0) {
+    err = 0; 
+    currentId = baseId - 1;
+    zeroScoreConsecutifs = (s1Init === 0 && s2Init === 0) ? 1 : 0;
+
+    while (err < 3 && currentId > 0) {
       const data = await fetchMatch(`${baseUrl}${currentId}${endUrl}`);
       if (data) {
+        const { s1, s2 } = ObtenirScoresMatch(data);
+
+        // Compteur de scores 0-0 consécutifs
+        if (s1 === 0 && s2 === 0) {
+          zeroScoreConsecutifs++;
+        } else {
+          zeroScoreConsecutifs = 0;
+        }
+
         listeMatchsPoule.unshift(data);
-        err = 0;
+        err = 0; // Réinitialiser le compteur d'erreurs 404
+
+        // Arrêt si 6 matchs consécutifs sont à 0-0
+        if (zeroScoreConsecutifs >= 6) {
+          break;
+        }
       } else { 
         err++; 
       }
