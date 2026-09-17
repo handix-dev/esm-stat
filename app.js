@@ -1,18 +1,11 @@
 /* ============================================================
-   CONFIGURATION DES SAISONS ET ÉQUIPES DU CLUB
+   CONFIGURATION DES ÉQUIPES DU CLUB
    ============================================================ */
-const SAISONS_CLUB = {
-  "2026/27": [
-    { id: "SM_A", nom: "Senior Masc. A", url: "https://www.ffhandball.fr/competitions/saison-2026-2027-22/national/nationale-3-masculine-2026-2027-32502/poule-190854/rencontre-2640089/" },
-    { id: "SM_B", nom: "Senior Masc. B", url: "https://www.ffhandball.fr/competitions/saison-2026-2027-22/regional/m002-excellence-masculine-32523/poule-190995/rencontre-2641016/" },
-    { id: "SM_C", nom: "Senior Masc. C", url: "https://www.ffhandball.fr/competitions/saison-2026-2027-22/regional/m004-1re-division-territoriale-masculine-32735/poule-192630/rencontre-2674902/" }
-  ],
-  "2025/26": [
-    { id: "SM_A", nom: "Senior Masc. A", url: "https://www.ffhandball.fr/competitions/saison-2025-2026-21/national/nationale-3-masculine-2025-26-28559/poule-169509/rencontre-2399931/" },
-    { id: "SM_B", nom: "Senior Masc. B", url: "https://www.ffhandball.fr/competitions/saison-2025-2026-21/regional/m002-excellence-masculine-28409/poule-168582/rencontre-2379993/" },
-    { id: "SM_C", nom: "Senior Masc. C", url: "https://www.ffhandball.fr/competitions/saison-2025-2026-21/regional/m004-1re-division-territoriale-masculine-28930/poule-172193/rencontre-2429738/" }
-  ]
-};
+const EQUIPES_CLUB = [
+  { id: "SM_A", nom: "Senior Masculin A", url: "https://www.ffhandball.fr/competitions/saison-2026-2027-22/national/nationale-3-masculine-2026-2027-32502/poule-190854/rencontre-2640089/" },
+  { id: "SM_B", nom: "Senior Masculin B", url: "https://www.ffhandball.fr/competitions/saison-2026-2027-22/regional/m002-excellence-masculine-32523/poule-190995/rencontre-2641016/" },
+  { id: "SF_A", nom: "Senior Masculin C", url: "https://www.ffhandball.fr/competitions/saison-2026-2027-22/regional/m004-1re-division-territoriale-masculine-32735/poule-192630/rencontre-2674902/" }
+];
 
 /* ============================================================
    CONSTANTES & ÉLÉMENTS DOM
@@ -20,8 +13,7 @@ const SAISONS_CLUB = {
 const WORKER_URL = "https://silent-salad-f4a2.handix-officiel.workers.dev/";
 const LOGO_DEFAULT = "https://cdn-icons-png.flaticon.com/512/3358/3358994.png";
 
-// DOM : Sélecteurs et Bouton
-const seasonSelect = document.getElementById("seasonSelect");
+// DOM : Sélecteur et Bouton
 const teamSelect = document.getElementById("teamSelect");
 const btnCharger = document.getElementById("btnCharger");
 const statusDiv = document.getElementById("status");
@@ -53,11 +45,14 @@ let modeButeurs = "buts"; // "buts" ou "ratio"
    ============================================================ */
 function nettoyerUrlLogo(rawUrl) {
   if (!rawUrl) return LOGO_DEFAULT;
+  
   const ta = document.createElement("textarea");
   ta.innerHTML = rawUrl;
   let decodedUrl = ta.value;
+
   decodedUrl = decodedUrl.replace(/\\/g, "");
   decodedUrl = decodedUrl.split(/["}{]/)[0];
+
   if (!decodedUrl.startsWith("http")) {
     if (decodedUrl.startsWith("/")) {
       decodedUrl = "https://media-logos-clubs.ffhandball.fr" + decodedUrl;
@@ -65,6 +60,7 @@ function nettoyerUrlLogo(rawUrl) {
       decodedUrl = "https://media-logos-clubs.ffhandball.fr/128/" + decodedUrl;
     }
   }
+
   decodedUrl = decodedUrl.replace(/\.(png|jpe?g)$/i, ".webp");
   return decodedUrl || LOGO_DEFAULT;
 }
@@ -73,16 +69,13 @@ function nettoyerUrlLogo(rawUrl) {
    INITIALISATION
    ============================================================ */
 function init() {
-  // Remplir la liste des saisons
-  for (const saison in SAISONS_CLUB) {
+  EQUIPES_CLUB.forEach(equipe => {
     const option = document.createElement("option");
-    option.value = saison;
-    option.textContent = `Saison ${saison}`;
-    seasonSelect.appendChild(option);
-  }
+    option.value = equipe.url;
+    option.textContent = equipe.nom;
+    teamSelect.appendChild(option);
+  });
 
-  // Événements
-  seasonSelect.addEventListener("change", updateTeamList);
   btnCharger.addEventListener("click", chargerDonnees);
   
   navItems.forEach(item => {
@@ -93,24 +86,6 @@ function init() {
   btnTabButeurs.addEventListener("click", () => showClassementTab("buteurs"));
   btnSortButs.addEventListener("click", () => { modeButeurs = "buts"; updateButeursUI(); });
   btnSortRatio.addEventListener("click", () => { modeButeurs = "ratio"; updateButeursUI(); });
-
-  // Initialiser les équipes de la première saison visible
-  updateTeamList();
-}
-
-function updateTeamList() {
-  teamSelect.innerHTML = `<option value="" disabled selected>Choisir une équipe...</option>`;
-  const saisonChoisie = seasonSelect.value;
-  const equipes = SAISONS_CLUB[saisonChoisie];
-  
-  if (equipes) {
-    equipes.forEach(eq => {
-      const option = document.createElement("option");
-      option.value = eq.url;
-      option.textContent = eq.nom;
-      teamSelect.appendChild(option);
-    });
-  }
 }
 
 function switchTab(targetId) {
@@ -219,7 +194,6 @@ async function chargerDonnees() {
   
   btnCharger.disabled = true;
   teamSelect.disabled = true;
-  seasonSelect.disabled = true;
   afficherStatus("Récupération de la poule en cours...", "loading");
 
   try {
@@ -241,12 +215,14 @@ async function chargerDonnees() {
     const baseId = parseInt(urlParts[2], 10);
     const endUrl = urlParts[3] || "";
 
+    // On analyse où on en est dans la saison à partir du match de base
     const { s1: s1Init, s2: s2Init } = ObtenirScoresMatch(matchInitial);
     let premiereJourneeVue = parseInt(matchInitial.rematch?.rencontre?.journeeNumero, 10) || 0;
     
+    // Traque la journée la plus avancée qui a été "jouée" (score > 0)
     let maxJourneeJouee = (s1Init > 0 || s2Init > 0) ? premiereJourneeVue : 0;
 
-    // SCAN VERS L'AVANT
+    // SCAN VERS L'AVANT (Futur)
     let err = 0, currentId = baseId + 1;
     while (err < 2) {
       const data = await fetchMatch(`${baseUrl}${currentId}${endUrl}`);
@@ -255,26 +231,34 @@ async function chargerDonnees() {
         const jNum = parseInt(data.rematch?.rencontre?.journeeNumero, 10) || 0;
 
         if (s1 > 0 || s2 > 0) {
+          // Si le match est joué, on met à jour notre repère de la saison
           maxJourneeJouee = Math.max(maxJourneeJouee, jNum);
         } else {
+          // Si le match n'est PAS joué, on vérifie si on est allé trop loin
           let limitJournee = maxJourneeJouee > 0 ? maxJourneeJouee + 1 : premiereJourneeVue;
-          if (jNum > limitJournee) break;
+          if (jNum > limitJournee) {
+            break; // On a atteint la DEUXIÈME journée à venir -> on stoppe le scan !
+          }
         }
         
         listeMatchsPoule.push(data);
         err = 0;
-      } else { err++; }
+      } else { 
+        err++; 
+      }
       currentId++;
     }
 
-    // SCAN VERS L'ARRIÈRE
+    // SCAN VERS L'ARRIÈRE (Passé) - On remonte jusqu'au début de la poule (les erreurs d'URL arrêteront le fetch)
     err = 0; currentId = baseId - 1;
     while (err < 2 && currentId > 0) {
       const data = await fetchMatch(`${baseUrl}${currentId}${endUrl}`);
       if (data) {
         listeMatchsPoule.unshift(data);
         err = 0;
-      } else { err++; }
+      } else { 
+        err++; 
+      }
       currentId--;
     }
 
@@ -296,7 +280,6 @@ async function chargerDonnees() {
   } finally {
     btnCharger.disabled = false;
     teamSelect.disabled = false;
-    seasonSelect.disabled = false;
   }
 }
 
@@ -314,7 +297,9 @@ function genererVuePoule() {
   
   listeMatchsPoule.forEach(m => {
     const journee = m.rematch?.rencontre?.journeeNumero || "NC";
-    if (!matchsParJournee[journee]) matchsParJournee[journee] = [];
+    if (!matchsParJournee[journee]) {
+      matchsParJournee[journee] = [];
+    }
     matchsParJournee[journee].push(m);
   });
 
@@ -340,8 +325,10 @@ function genererVuePoule() {
       const eq1 = m.equipe1?.libelle || "Équipe 1";
       const eq2 = m.equipe2?.libelle || "Équipe 2";
       
-      const logo1 = nettoyerUrlLogo(m.rematch?.rencontre?.equipe1?.logo || m.score?.home?.logo || m.equipe1?.logo);
-      const logo2 = nettoyerUrlLogo(m.rematch?.rencontre?.equipe2?.logo || m.score?.away?.logo || m.equipe2?.logo);
+      const rawLogo1 = m.rematch?.rencontre?.equipe1?.logo || m.score?.home?.logo || m.equipe1?.logo;
+      const rawLogo2 = m.rematch?.rencontre?.equipe2?.logo || m.score?.away?.logo || m.equipe2?.logo;
+      const logo1 = nettoyerUrlLogo(rawLogo1);
+      const logo2 = nettoyerUrlLogo(rawLogo2);
 
       const { s1, s2 } = ObtenirScoresMatch(m);
       
@@ -355,6 +342,7 @@ function genererVuePoule() {
         }
       }
 
+      // Esthétique : griser les scores à 0-0 pour les matchs à venir
       let scoreHTML = `<div class="match-score-box">${s1} - ${s2}</div>`;
       if (s1 === 0 && s2 === 0) {
         scoreHTML = `<div class="match-score-box" style="background: var(--bg-color); color: var(--text-muted); border: 1px dashed var(--border-color);">À venir</div>`;
@@ -366,12 +354,12 @@ function genererVuePoule() {
         <div class="match-date">${dateStr}</div>
         <div class="match-row">
           <div class="match-team">
-            <img src="${logo1}" class="match-logo" onerror="this.src='${LOGO_DEFAULT}'">
+            <img src="${logo1}" alt="${eq1}" class="match-logo" onerror="this.src='${LOGO_DEFAULT}'">
             <div class="match-team-name">${eq1}</div>
           </div>
           ${scoreHTML}
           <div class="match-team">
-            <img src="${logo2}" class="match-logo" onerror="this.src='${LOGO_DEFAULT}'">
+            <img src="${logo2}" alt="${eq2}" class="match-logo" onerror="this.src='${LOGO_DEFAULT}'">
             <div class="match-team-name">${eq2}</div>
           </div>
         </div>
@@ -397,8 +385,10 @@ function afficherMatchDetails(data) {
   detailMatchContainer.innerHTML = "";
   const { s1, s2 } = ObtenirScoresMatch(data);
 
-  const logo1 = nettoyerUrlLogo(data.rematch?.rencontre?.equipe1?.logo || data.score?.home?.logo || data.equipe1?.logo);
-  const logo2 = nettoyerUrlLogo(data.rematch?.rencontre?.equipe2?.logo || data.score?.away?.logo || data.equipe2?.logo);
+  const rawLogo1 = data.rematch?.rencontre?.equipe1?.logo || data.score?.home?.logo || data.equipe1?.logo;
+  const rawLogo2 = data.rematch?.rencontre?.equipe2?.logo || data.score?.away?.logo || data.equipe2?.logo;
+  const logo1 = nettoyerUrlLogo(rawLogo1);
+  const logo2 = nettoyerUrlLogo(rawLogo2);
 
   const matchHeaderHTML = `
     <div class="card" style="margin-bottom: 20px;">
@@ -433,10 +423,14 @@ function genererListeJoueurs(equipe, joueurs) {
   joueursEquipe.sort((a, b) => (parseInt(b.buts) || 0) - (parseInt(a.buts) || 0));
 
   let cartesJoueurs = joueursEquipe.map(j => {
+    // Formatage du prénom (1ère lettre majuscule, reste minuscule)
     const prenomStr = j.prenom ? j.prenom.trim() : "";
     const prenomFormate = prenomStr ? prenomStr.charAt(0).toUpperCase() + prenomStr.slice(1).toLowerCase() : "";
+    
+    // Formatage du nom (Tout en majuscules)
     const nomFormate = j.nom ? j.nom.trim().toUpperCase() : "";
     
+    // Gestion du score et du pluriel
     const nbButs = parseInt(j.buts) || 0;
     const labelButs = nbButs <= 1 ? "but" : "buts";
 
@@ -448,7 +442,7 @@ function genererListeJoueurs(equipe, joueurs) {
       </div>
       <div class="score-container" style="display: flex; align-items: baseline; gap: 4px;">
         <span class="match-score">${nbButs}</span>
-        <span style="font-size: 11px; font-weight: 500; color: var(--bg-card); opacity: 0.9;">${labelButs}</span>
+        <span style="font-size: 11px; font-weight: 500; color: var(--primary);">${labelButs}</span>
       </div>
     </div>
     `;
@@ -529,12 +523,7 @@ function genererClassementButeurs() {
       const key = `${j.prenom}_${j.nom}_${j.equipeId}`;
       const buts = parseInt(j.buts, 10) || 0;
       if (!joueurs[key]) {
-        joueurs[key] = { 
-          nom: `${j.prenom ? j.prenom.charAt(0).toUpperCase() + j.prenom.slice(1).toLowerCase() : ""} ${j.nom ? j.nom.toUpperCase() : ""}`.trim(), 
-          equipe: eqMap[String(j.equipeId)], 
-          buts: 0, 
-          matchs: 0 
-        };
+        joueurs[key] = { nom: `${j.prenom || ""} ${j.nom || ""}`.trim(), equipe: eqMap[String(j.equipeId)], buts: 0, matchs: 0 };
       }
       joueurs[key].buts += buts;
       joueurs[key].matchs += 1;
@@ -572,5 +561,5 @@ function updateButeursUI() {
   genererClassementButeurs();
 }
 
-// Lancement
+// Lancement au chargement
 init();
