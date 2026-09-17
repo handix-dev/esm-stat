@@ -3,9 +3,9 @@
    ============================================================ */
 // 🔴 À MODIFIER : Insère ici l'URL d'un match de la poule pour chaque équipe
 const EQUIPES_CLUB = [
-  { id: "SM_A", nom: "Senior Masculin A", url: "https://www.ffhandball.fr/competitions/..." },
-  { id: "SM_B", nom: "Senior Masculin B", url: "https://www.ffhandball.fr/competitions/..." },
-  { id: "SF_A", nom: "Senior Féminine A", url: "https://www.ffhandball.fr/competitions/..." }
+  { id: "SM_A", nom: "Senior Masculin A", url: "https://www.ffhandball.fr/competitions/saison-2026-2027-22/national/nationale-3-masculine-2026-2027-32502/poule-190854/rencontre-2640089/" },
+  { id: "SM_B", nom: "Senior Masculin B", url: "https://www.ffhandball.fr/competitions/saison-2026-2027-22/regional/m002-excellence-masculine-32523/poule-190995/rencontre-2641016/" },
+  { id: "SF_A", nom: "Senior Masculin C", url: "https://www.ffhandball.fr/competitions/saison-2026-2027-22/regional/m004-1re-division-territoriale-masculine-32735/poule-192630/rencontre-2674902/" }
 ];
 
 /* ============================================================
