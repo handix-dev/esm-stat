@@ -165,7 +165,6 @@ function extraireDonnees(html) {
 
   return { ...joueursData, score: scoreData, rematch: rematchData };
 }
-}
 
 async function fetchMatch(url) {
   try {
