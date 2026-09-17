@@ -12,6 +12,7 @@ const EQUIPES_CLUB = [
    CONSTANTES & ÉLÉMENTS DOM
    ============================================================ */
 const WORKER_URL = "https://silent-salad-f4a2.handix-officiel.workers.dev/";
+const LOGO_DEFAULT = "https://cdn-icons-png.flaticon.com/512/3358/3358994.png"; // Logo bouclier par défaut
 
 // DOM : Sélecteur et Bouton
 const teamSelect = document.getElementById("teamSelect");
@@ -163,6 +164,9 @@ async function chargerDonnees() {
     return;
   }
 
+  // RÉINITIALISATION DE L'ONGLET STATS QUAND ON CHARGE UNE NOUVELLE EQUIPE
+  detailMatchContainer.innerHTML = `<div class="empty-state">Cliquez sur un match dans l'onglet "Poule" pour voir les statistiques.</div>`;
+
   listeMatchsPoule = [];
   btnCharger.disabled = true;
   teamSelect.disabled = true;
@@ -214,7 +218,7 @@ async function chargerDonnees() {
   teamSelect.disabled = false;
   afficherStatus(`Terminé ! ${listeMatchsPoule.length} matchs trouvés.`, "success");
   
-  // Trier chronologiquement
+  // Trier chronologiquement la poule globale avant de la grouper
   listeMatchsPoule.sort((a, b) => {
     const dA = a.rematch?.rencontre?.date ? new Date(a.rematch.rencontre.date.replace(" ", "T")) : 0;
     const dB = b.rematch?.rencontre?.date ? new Date(b.rematch.rencontre.date.replace(" ", "T")) : 0;
@@ -227,7 +231,7 @@ async function chargerDonnees() {
 }
 
 /* ============================================================
-   RENDU VUE : POULE
+   RENDU VUE : POULE (Groupé par Journées avec Date, Heure, Logos)
    ============================================================ */
 function genererVuePoule() {
   listeMatchsContainer.innerHTML = "";
@@ -236,37 +240,90 @@ function genererVuePoule() {
     return;
   }
 
-  listeMatchsPoule.forEach((m, index) => {
-    const eq1 = m.equipe1?.libelle || "Équipe 1";
-    const eq2 = m.equipe2?.libelle || "Équipe 2";
-    const { s1, s2 } = ObtenirScoresMatch(m);
-    
-    let dateStr = "Date inconnue";
-    if (m.rematch?.rencontre?.date) {
-      const d = new Date(m.rematch.rencontre.date.replace(" ", "T"));
-      if (!isNaN(d.getTime())) {
-        dateStr = d.toLocaleDateString("fr-FR", { day: "2-digit", month: "short" });
-      }
+  // Regrouper les matchs par numéro de journée
+  const matchsParJournee = {};
+  
+  listeMatchsPoule.forEach(m => {
+    // Tente de récupérer le numéro de la journée, sinon "Matchs supplémentaires"
+    const journee = m.rematch?.rencontre?.journeeNumero || "NC";
+    if (!matchsParJournee[journee]) {
+      matchsParJournee[journee] = [];
     }
+    matchsParJournee[journee].push(m);
+  });
 
-    const card = document.createElement("div");
-    card.className = "card match-card";
-    card.innerHTML = `
-      <div class="match-date">${dateStr}</div>
-      <div class="match-row">
-        <div class="match-team">${eq1}</div>
-        <div class="match-score-box">${s1} - ${s2}</div>
-        <div class="match-team">${eq2}</div>
-      </div>
+  // Trier les journées (les numéros en premier, "NC" à la fin)
+  const journeesTriees = Object.keys(matchsParJournee).sort((a, b) => {
+    if (a === "NC") return 1;
+    if (b === "NC") return -1;
+    return parseInt(a) - parseInt(b);
+  });
+
+  journeesTriees.forEach(journee => {
+    // Création du bloc global pour la journée
+    const blockJournee = document.createElement("div");
+    blockJournee.className = "journee-block";
+
+    // En-tête de la journée
+    const titreJournee = journee === "NC" ? "Matchs Hors Journées" : `Journée ${journee}`;
+    blockJournee.innerHTML = `
+      <div class="journee-header"><i class="ri-calendar-event-line" style="margin-right: 6px;"></i> ${titreJournee}</div>
+      <div class="journee-matchs"></div>
     `;
-    
-    // Au clic, ouvre le match dans l'onglet STATS
-    card.addEventListener("click", () => {
-      afficherMatchDetails(m);
-      switchTab("vue-stats");
+
+    const containerMatchs = blockJournee.querySelector(".journee-matchs");
+
+    // Ajouter tous les matchs de cette journée
+    matchsParJournee[journee].forEach((m) => {
+      const eq1 = m.equipe1?.libelle || "Équipe 1";
+      const eq2 = m.equipe2?.libelle || "Équipe 2";
+      
+      // Récupération des logos (ou logo par défaut)
+      const logo1 = m.equipe1?.logo || LOGO_DEFAULT;
+      const logo2 = m.equipe2?.logo || LOGO_DEFAULT;
+
+      const { s1, s2 } = ObtenirScoresMatch(m);
+      
+      let dateStr = "Date inconnue";
+      if (m.rematch?.rencontre?.date) {
+        const d = new Date(m.rematch.rencontre.date.replace(" ", "T"));
+        if (!isNaN(d.getTime())) {
+          // Formatage : "14 oct. à 20:30"
+          const jourMois = d.toLocaleDateString("fr-FR", { day: "2-digit", month: "short" });
+          const heure = d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+          dateStr = `<i class="ri-time-line"></i> ${jourMois} à ${heure}`;
+        }
+      }
+
+      const card = document.createElement("div");
+      card.className = "card match-card";
+      card.innerHTML = `
+        <div class="match-date">${dateStr}</div>
+        <div class="match-row">
+          <div class="match-team">
+            <img src="${logo1}" alt="${eq1}" class="match-logo" onerror="this.src='${LOGO_DEFAULT}'">
+            <div class="match-team-name">${eq1}</div>
+          </div>
+          <div class="match-score-box">${s1} - ${s2}</div>
+          <div class="match-team">
+            <img src="${logo2}" alt="${eq2}" class="match-logo" onerror="this.src='${LOGO_DEFAULT}'">
+            <div class="match-team-name">${eq2}</div>
+          </div>
+        </div>
+      `;
+      
+      // Au clic, ouvre le match dans l'onglet STATS
+      card.addEventListener("click", () => {
+        afficherMatchDetails(m);
+        switchTab("vue-stats");
+        // Optionnel : remonter tout en haut de la page lors du changement d'onglet
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+
+      containerMatchs.appendChild(card);
     });
 
-    listeMatchsContainer.appendChild(card);
+    listeMatchsContainer.appendChild(blockJournee);
   });
 }
 
@@ -277,12 +334,21 @@ function afficherMatchDetails(data) {
   detailMatchContainer.innerHTML = "";
   const { s1, s2 } = ObtenirScoresMatch(data);
 
+  const logo1 = data.equipe1?.logo || LOGO_DEFAULT;
+  const logo2 = data.equipe2?.logo || LOGO_DEFAULT;
+
   const matchHeaderHTML = `
     <div class="card" style="margin-bottom: 20px;">
       <div class="match-row">
-        <div class="match-team">${data.equipe1?.libelle || "Équipe 1"}</div>
+        <div class="match-team">
+            <img src="${logo1}" class="match-logo" onerror="this.src='${LOGO_DEFAULT}'">
+            <div class="match-team-name">${data.equipe1?.libelle || "Équipe 1"}</div>
+        </div>
         <div class="match-score-box" style="font-size: 20px;">${s1} - ${s2}</div>
-        <div class="match-team">${data.equipe2?.libelle || "Équipe 2"}</div>
+        <div class="match-team">
+            <img src="${logo2}" class="match-logo" onerror="this.src='${LOGO_DEFAULT}'">
+            <div class="match-team-name">${data.equipe2?.libelle || "Équipe 2"}</div>
+        </div>
       </div>
     </div>
   `;
@@ -426,6 +492,10 @@ function updateButeursUI() {
   if (modeButeurs === "buts") { btnSortButs.classList.add("active"); btnSortRatio.classList.remove("active"); } 
   else { btnSortRatio.classList.add("active"); btnSortButs.classList.remove("active"); }
   genererClassementButeurs();
+}
+
+// Lancer l'initialisation
+init();
 }
 
 // Lancer l'initialisation
