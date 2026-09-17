@@ -65,7 +65,8 @@ function init() {
 
 function switchTab(targetId) {
   navItems.forEach(nav => nav.classList.remove("active"));
-  document.querySelector(`[data-target="${targetId}"]`).classList.add("active");
+  const activeNav = document.querySelector(`[data-target="${targetId}"]`);
+  if (activeNav) activeNav.classList.add("active");
   
   views.forEach(view => {
     view.style.display = view.id === targetId ? "block" : "none";
@@ -85,19 +86,14 @@ function afficherStatus(message, type = "") {
 }
 
 /* ============================================================
-   SCRAPING ET LOGIQUE DE RÉCUPÉRATION
-   ============================================================ */
-/* ============================================================
-   SCRAPING ET LOGIQUE DE RÉCUPÉRATION
+   EXTRACTION DES DONNÉES (JSON PUR)
    ============================================================ */
 function extraireDonnees(html) {
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, "text/html");
-  
-  // Vérifier si la page est une erreur 404
+
   if (doc.querySelector('smartfire-component[name="page-404"]')) return null;
 
-  // 1. Scraping des Joueurs
   const joueursComponent = doc.querySelector('smartfire-component[name="competitions---rencontre-liste-joueurs"]');
   if (!joueursComponent) return null;
 
@@ -109,7 +105,6 @@ function extraireDonnees(html) {
   let joueursData;
   try { joueursData = JSON.parse(ta.value); } catch { return null; }
 
-  // 2. Scraping du Score
   const scoreComponent = doc.querySelector('smartfire-component[name="competitions---competition-score"]');
   let scoreData = null;
   if (scoreComponent) {
@@ -121,7 +116,6 @@ function extraireDonnees(html) {
     }
   }
 
-  // 3. Scraping du Rematch (Infos générales de la rencontre)
   const rematchComponent = doc.querySelector('smartfire-component[name="competitions---rematch"]');
   let rematchData = null;
   if (rematchComponent) {
@@ -132,36 +126,6 @@ function extraireDonnees(html) {
       try { rematchData = JSON.parse(taR.value); } catch {}
     }
   }
-
-  // 4. RÉCUPÉRATION DES LOGOS VIA SCRAPING
-  let logoEq1 = null;
-  let logoEq2 = null;
-
-  // On cherche d'abord dans les composants (le plus fiable)
-  if (scoreData?.home?.logo) logoEq1 = scoreData.home.logo;
-  if (scoreData?.away?.logo) logoEq2 = scoreData.away.logo;
-
-  if (!logoEq1 && rematchData?.rencontre?.equipe1?.logo) logoEq1 = rematchData.rencontre.equipe1.logo;
-  if (!logoEq2 && rematchData?.rencontre?.equipe2?.logo) logoEq2 = rematchData.rencontre.equipe2.logo;
-
-  // Si on ne les a toujours pas, on scrape directement les balises images du DOM
-  if (!logoEq1 || !logoEq2) {
-    const images = Array.from(doc.querySelectorAll('img'));
-    
-    // On essaie de faire correspondre l'attribut alt avec le nom de l'équipe
-    if (joueursData.equipe1?.libelle) {
-      const img1 = images.find(img => img.alt && img.alt.includes(joueursData.equipe1.libelle));
-      if (img1) logoEq1 = img1.src;
-    }
-    if (joueursData.equipe2?.libelle) {
-      const img2 = images.find(img => img.alt && img.alt.includes(joueursData.equipe2.libelle));
-      if (img2) logoEq2 = img2.src;
-    }
-  }
-
-  // On force l'injection des vrais logos récupérés dans les données principales
-  if (joueursData.equipe1 && logoEq1) joueursData.equipe1.logo = logoEq1;
-  if (joueursData.equipe2 && logoEq2) joueursData.equipe2.logo = logoEq2;
 
   return { ...joueursData, score: scoreData, rematch: rematchData };
 }
@@ -263,7 +227,7 @@ async function chargerDonnees() {
     console.error(error);
     afficherStatus("Une erreur technique est survenue.", "error");
   } finally {
-    // Cette sécurité garantit que les contrôles seront TOUJOURS réactivés, même si le code plante.
+    // Sécurité anti-blocage : réactive toujours les contrôles
     btnCharger.disabled = false;
     teamSelect.disabled = false;
   }
@@ -311,8 +275,9 @@ function genererVuePoule() {
       const eq1 = m.equipe1?.libelle || "Équipe 1";
       const eq2 = m.equipe2?.libelle || "Équipe 2";
       
-      const logo1 = m.equipe1?.logo || LOGO_DEFAULT;
-      const logo2 = m.equipe2?.logo || LOGO_DEFAULT;
+      // Récupération sécurisée du logo via les sources de données d'origine
+      const logo1 = m.rematch?.rencontre?.equipe1?.logo || m.score?.home?.logo || m.equipe1?.logo || LOGO_DEFAULT;
+      const logo2 = m.rematch?.rencontre?.equipe2?.logo || m.score?.away?.logo || m.equipe2?.logo || LOGO_DEFAULT;
 
       const { s1, s2 } = ObtenirScoresMatch(m);
       
@@ -363,8 +328,8 @@ function afficherMatchDetails(data) {
   detailMatchContainer.innerHTML = "";
   const { s1, s2 } = ObtenirScoresMatch(data);
 
-  const logo1 = data.equipe1?.logo || LOGO_DEFAULT;
-  const logo2 = data.equipe2?.logo || LOGO_DEFAULT;
+  const logo1 = data.rematch?.rencontre?.equipe1?.logo || data.score?.home?.logo || data.equipe1?.logo || LOGO_DEFAULT;
+  const logo2 = data.rematch?.rencontre?.equipe2?.logo || data.score?.away?.logo || data.equipe2?.logo || LOGO_DEFAULT;
 
   const matchHeaderHTML = `
     <div class="card" style="margin-bottom: 20px;">
@@ -523,5 +488,5 @@ function updateButeursUI() {
   genererClassementButeurs();
 }
 
-// Lancer l'initialisation
+// Lancer l'initialisation au chargement du script
 init();
