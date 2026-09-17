@@ -31,12 +31,12 @@
 
       <!-- Sélecteur d'équipe et de saison -->
       <div class="search-container">
-        <div style="display: flex; flex-direction: column; gap: 8px; width: calc(100% - 50px);">
-          <select id="teamSelect" class="search-input" style="width: 100%;">
-            <option value="" disabled selected>Choisir une équipe...</option>
+        <div style="display: flex; flex-direction: row; gap: 8px; width: calc(100% - 50px);">
+          <select id="teamSelect" class="search-input" style="flex: 2; width: auto;">
+            <option value="" disabled selected>Équipe...</option>
           </select>
-          <select id="seasonSelect" class="search-input" style="width: 100%;">
-            <option value="" disabled selected>Choisir une saison...</option>
+          <select id="seasonSelect" class="search-input" style="flex: 1; width: auto; padding: 0 8px; text-align: center;">
+            <option value="" disabled selected>Saison</option>
           </select>
         </div>
         <button id="btnCharger" class="search-button" title="Charger les données" style="top: 50%;">
