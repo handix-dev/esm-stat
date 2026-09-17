@@ -46,18 +46,13 @@ let modeButeurs = "buts"; // "buts" ou "ratio"
 function nettoyerUrlLogo(rawUrl) {
   if (!rawUrl) return LOGO_DEFAULT;
   
-  // 1. Décoder les entités HTML (&quot; etc.) comme pour les données JSON
   const ta = document.createElement("textarea");
   ta.innerHTML = rawUrl;
   let decodedUrl = ta.value;
 
-  // 2. Nettoyer les antislashs restants
   decodedUrl = decodedUrl.replace(/\\/g, "");
-
-  // 3. Couper au premier caractère parasite (guillemet, accolade)
   decodedUrl = decodedUrl.split(/["}{]/)[0];
 
-  // 4. Si l'URL n'est pas absolue, on ajoute le domaine FFHB pour éviter l'erreur 404 locale
   if (!decodedUrl.startsWith("http")) {
     if (decodedUrl.startsWith("/")) {
       decodedUrl = "https://media-logos-clubs.ffhandball.fr" + decodedUrl;
@@ -66,9 +61,7 @@ function nettoyerUrlLogo(rawUrl) {
     }
   }
 
-  // 5. CORRECTION WEBP : Forcer l'extension en .webp car la FFHB ne sert plus les .png/.jpg
   decodedUrl = decodedUrl.replace(/\.(png|jpe?g)$/i, ".webp");
-
   return decodedUrl || LOGO_DEFAULT;
 }
 
@@ -186,6 +179,9 @@ function ObtenirScoresMatch(m) {
   return { s1: isNaN(s1) ? 0 : Math.max(0, s1), s2: isNaN(s2) ? 0 : Math.max(0, s2) };
 }
 
+/* ============================================================
+   LOGIQUE INTELLIGENTE DE CHARGEMENT
+   ============================================================ */
 async function chargerDonnees() {
   const targetUrl = teamSelect.value;
   if (!targetUrl) {
@@ -219,27 +215,50 @@ async function chargerDonnees() {
     const baseId = parseInt(urlParts[2], 10);
     const endUrl = urlParts[3] || "";
 
-    let err = 0, zeroZero = 0, currentId = baseId + 1;
-    while (err < 2 && zeroZero < 4) {
+    // On analyse où on en est dans la saison à partir du match de base
+    const { s1: s1Init, s2: s2Init } = ObtenirScoresMatch(matchInitial);
+    let premiereJourneeVue = parseInt(matchInitial.rematch?.rencontre?.journeeNumero, 10) || 0;
+    
+    // Traque la journée la plus avancée qui a été "jouée" (score > 0)
+    let maxJourneeJouee = (s1Init > 0 || s2Init > 0) ? premiereJourneeVue : 0;
+
+    // SCAN VERS L'AVANT (Futur)
+    let err = 0, currentId = baseId + 1;
+    while (err < 2) {
       const data = await fetchMatch(`${baseUrl}${currentId}${endUrl}`);
       if (data) {
+        const { s1, s2 } = ObtenirScoresMatch(data);
+        const jNum = parseInt(data.rematch?.rencontre?.journeeNumero, 10) || 0;
+
+        if (s1 > 0 || s2 > 0) {
+          // Si le match est joué, on met à jour notre repère de la saison
+          maxJourneeJouee = Math.max(maxJourneeJouee, jNum);
+        } else {
+          // Si le match n'est PAS joué, on vérifie si on est allé trop loin
+          let limitJournee = maxJourneeJouee > 0 ? maxJourneeJouee + 1 : premiereJourneeVue;
+          if (jNum > limitJournee) {
+            break; // On a atteint la DEUXIÈME journée à venir -> on stoppe le scan !
+          }
+        }
+        
         listeMatchsPoule.push(data);
         err = 0;
-        const { s1, s2 } = ObtenirScoresMatch(data);
-        zeroZero = (s1 === 0 && s2 === 0) ? zeroZero + 1 : 0;
-      } else { err++; }
+      } else { 
+        err++; 
+      }
       currentId++;
     }
 
-    err = 0; zeroZero = 0; currentId = baseId - 1;
-    while (err < 2 && zeroZero < 4 && currentId > 0) {
+    // SCAN VERS L'ARRIÈRE (Passé) - On remonte jusqu'au début de la poule (les erreurs d'URL arrêteront le fetch)
+    err = 0; currentId = baseId - 1;
+    while (err < 2 && currentId > 0) {
       const data = await fetchMatch(`${baseUrl}${currentId}${endUrl}`);
       if (data) {
         listeMatchsPoule.unshift(data);
         err = 0;
-        const { s1, s2 } = ObtenirScoresMatch(data);
-        zeroZero = (s1 === 0 && s2 === 0) ? zeroZero + 1 : 0;
-      } else { err++; }
+      } else { 
+        err++; 
+      }
       currentId--;
     }
 
@@ -323,6 +342,12 @@ function genererVuePoule() {
         }
       }
 
+      // Esthétique : griser les scores à 0-0 pour les matchs à venir
+      let scoreHTML = `<div class="match-score-box">${s1} - ${s2}</div>`;
+      if (s1 === 0 && s2 === 0) {
+        scoreHTML = `<div class="match-score-box" style="background: var(--bg-color); color: var(--text-muted); border: 1px dashed var(--border-color);">À venir</div>`;
+      }
+
       const card = document.createElement("div");
       card.className = "card match-card";
       card.innerHTML = `
@@ -332,7 +357,7 @@ function genererVuePoule() {
             <img src="${logo1}" alt="${eq1}" class="match-logo" onerror="this.src='${LOGO_DEFAULT}'">
             <div class="match-team-name">${eq1}</div>
           </div>
-          <div class="match-score-box">${s1} - ${s2}</div>
+          ${scoreHTML}
           <div class="match-team">
             <img src="${logo2}" alt="${eq2}" class="match-logo" onerror="this.src='${LOGO_DEFAULT}'">
             <div class="match-team-name">${eq2}</div>
