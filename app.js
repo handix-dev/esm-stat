@@ -442,7 +442,7 @@ function genererListeJoueurs(equipe, joueurs) {
       </div>
       <div class="score-container" style="display: flex; align-items: baseline; gap: 4px;">
         <span class="match-score">${nbButs}</span>
-        <span style="font-size: 11px; font-weight: 500; color: #888;">${labelButs}</span>
+        <span style="font-size: 11px; font-weight: 500; color: var(--primary);">${labelButs}</span>
       </div>
     </div>
     `;
