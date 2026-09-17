@@ -268,29 +268,35 @@ async function chargerDonnees() {
 
     // SCAN VERS L'AVANT
     let err = 0, currentId = baseId + 1;
-    while (err < 3) {
+    while (err < 6) {
       const data = await fetchMatch(`${baseUrl}${currentId}${endUrl}`);
       if (data) {
-        const { s1, s2 } = ObtenirScoresMatch(data);
-
-        // Compteur de scores 0-0 consécutifs
-        if (s1 === 0 && s2 === 0) {
-          zeroScoreConsecutifs++;
-        } else {
-          zeroScoreConsecutifs = 0;
-        }
-
+        // ... (le reste du code reste identique) ...
         listeMatchsPoule.push(data);
-        err = 0; // Réinitialiser le compteur d'erreurs 404
-
-        // Arrêt si 6 matchs consécutifs sont à 0-0
-        if (zeroScoreConsecutifs >= 6) {
-          break;
-        }
+        err = 0; 
+        if (zeroScoreConsecutifs >= 6) break;
       } else { 
         err++; 
       }
       currentId++;
+    }
+
+    // SCAN VERS L'ARRIÈRE
+    err = 0; 
+    currentId = baseId - 1;
+    zeroScoreConsecutifs = (s1Init === 0 && s2Init === 0) ? 1 : 0;
+
+    while (err < 6 && currentId > 0) {
+      const data = await fetchMatch(`${baseUrl}${currentId}${endUrl}`);
+      if (data) {
+        // ... (le reste du code reste identique) ...
+        listeMatchsPoule.unshift(data);
+        err = 0; 
+        if (zeroScoreConsecutifs >= 6) break;
+      } else { 
+        err++; 
+      }
+      currentId--;
     }
 
     // SCAN VERS L'ARRIÈRE
