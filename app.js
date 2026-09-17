@@ -41,6 +41,16 @@ let listeMatchsPoule = [];
 let modeButeurs = "buts"; // "buts" ou "ratio"
 
 /* ============================================================
+   UTILITAIRES
+   ============================================================ */
+function nettoyerUrlLogo(url) {
+  if (!url) return LOGO_DEFAULT;
+  // Retire les antislashs et supprime les &quot;, guillemets ou accolades parasites
+  let cleanUrl = url.replace(/\\\//g, '/').replace(/&quot;/g, '').replace(/[}"]/g, '');
+  return cleanUrl;
+}
+
+/* ============================================================
    INITIALISATION
    ============================================================ */
 function init() {
@@ -275,9 +285,11 @@ function genererVuePoule() {
       const eq1 = m.equipe1?.libelle || "Équipe 1";
       const eq2 = m.equipe2?.libelle || "Équipe 2";
       
-      // Récupération sécurisée du logo via les sources de données d'origine
-      const logo1 = m.rematch?.rencontre?.equipe1?.logo || m.score?.home?.logo || m.equipe1?.logo || LOGO_DEFAULT;
-      const logo2 = m.rematch?.rencontre?.equipe2?.logo || m.score?.away?.logo || m.equipe2?.logo || LOGO_DEFAULT;
+      // Récupération et nettoyage des logos
+      const rawLogo1 = m.rematch?.rencontre?.equipe1?.logo || m.score?.home?.logo || m.equipe1?.logo;
+      const rawLogo2 = m.rematch?.rencontre?.equipe2?.logo || m.score?.away?.logo || m.equipe2?.logo;
+      const logo1 = nettoyerUrlLogo(rawLogo1);
+      const logo2 = nettoyerUrlLogo(rawLogo2);
 
       const { s1, s2 } = ObtenirScoresMatch(m);
       
@@ -328,8 +340,11 @@ function afficherMatchDetails(data) {
   detailMatchContainer.innerHTML = "";
   const { s1, s2 } = ObtenirScoresMatch(data);
 
-  const logo1 = data.rematch?.rencontre?.equipe1?.logo || data.score?.home?.logo || data.equipe1?.logo || LOGO_DEFAULT;
-  const logo2 = data.rematch?.rencontre?.equipe2?.logo || data.score?.away?.logo || data.equipe2?.logo || LOGO_DEFAULT;
+  // Récupération et nettoyage des logos
+  const rawLogo1 = data.rematch?.rencontre?.equipe1?.logo || data.score?.home?.logo || data.equipe1?.logo;
+  const rawLogo2 = data.rematch?.rencontre?.equipe2?.logo || data.score?.away?.logo || data.equipe2?.logo;
+  const logo1 = nettoyerUrlLogo(rawLogo1);
+  const logo2 = nettoyerUrlLogo(rawLogo2);
 
   const matchHeaderHTML = `
     <div class="card" style="margin-bottom: 20px;">
