@@ -41,13 +41,32 @@ let listeMatchsPoule = [];
 let modeButeurs = "buts"; // "buts" ou "ratio"
 
 /* ============================================================
-   UTILITAIRES
+   UTILITAIRES (CORRECTION LOGOS)
    ============================================================ */
-function nettoyerUrlLogo(url) {
-  if (!url) return LOGO_DEFAULT;
-  // Retire les antislashs et supprime les &quot;, guillemets ou accolades parasites
-  let cleanUrl = url.replace(/\\\//g, '/').replace(/&quot;/g, '').replace(/[}"]/g, '');
-  return cleanUrl;
+function nettoyerUrlLogo(rawUrl) {
+  if (!rawUrl) return LOGO_DEFAULT;
+  
+  // 1. Décoder les entités HTML (&quot; etc.) comme pour les données JSON
+  const ta = document.createElement("textarea");
+  ta.innerHTML = rawUrl;
+  let decodedUrl = ta.value;
+
+  // 2. Nettoyer les antislashs restants
+  decodedUrl = decodedUrl.replace(/\\/g, "");
+
+  // 3. Couper au premier caractère parasite (guillemet, accolade)
+  decodedUrl = decodedUrl.split(/["}{]/)[0];
+
+  // 4. Si l'URL n'est pas absolue, on ajoute le domaine FFHB pour éviter l'erreur 404 locale
+  if (!decodedUrl.startsWith("http")) {
+    if (decodedUrl.startsWith("/")) {
+      decodedUrl = "https://media-logos-clubs.ffhandball.fr" + decodedUrl;
+    } else {
+      decodedUrl = "https://media-logos-clubs.ffhandball.fr/128/" + decodedUrl;
+    }
+  }
+
+  return decodedUrl || LOGO_DEFAULT;
 }
 
 /* ============================================================
@@ -96,7 +115,7 @@ function afficherStatus(message, type = "") {
 }
 
 /* ============================================================
-   EXTRACTION DES DONNÉES (JSON PUR)
+   EXTRACTION DES DONNÉES
    ============================================================ */
 function extraireDonnees(html) {
   const parser = new DOMParser();
@@ -237,7 +256,6 @@ async function chargerDonnees() {
     console.error(error);
     afficherStatus("Une erreur technique est survenue.", "error");
   } finally {
-    // Sécurité anti-blocage : réactive toujours les contrôles
     btnCharger.disabled = false;
     teamSelect.disabled = false;
   }
@@ -285,7 +303,6 @@ function genererVuePoule() {
       const eq1 = m.equipe1?.libelle || "Équipe 1";
       const eq2 = m.equipe2?.libelle || "Équipe 2";
       
-      // Récupération et nettoyage des logos
       const rawLogo1 = m.rematch?.rencontre?.equipe1?.logo || m.score?.home?.logo || m.equipe1?.logo;
       const rawLogo2 = m.rematch?.rencontre?.equipe2?.logo || m.score?.away?.logo || m.equipe2?.logo;
       const logo1 = nettoyerUrlLogo(rawLogo1);
@@ -340,7 +357,6 @@ function afficherMatchDetails(data) {
   detailMatchContainer.innerHTML = "";
   const { s1, s2 } = ObtenirScoresMatch(data);
 
-  // Récupération et nettoyage des logos
   const rawLogo1 = data.rematch?.rencontre?.equipe1?.logo || data.score?.home?.logo || data.equipe1?.logo;
   const rawLogo2 = data.rematch?.rencontre?.equipe2?.logo || data.score?.away?.logo || data.equipe2?.logo;
   const logo1 = nettoyerUrlLogo(rawLogo1);
@@ -503,5 +519,5 @@ function updateButeursUI() {
   genererClassementButeurs();
 }
 
-// Lancer l'initialisation au chargement du script
+// Lancement au chargement
 init();
