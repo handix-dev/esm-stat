@@ -296,14 +296,14 @@ async function chargerDonnees() {
 
           listeMatchsPoule.push(data);
 
-          // Arrêt strict si 5 matchs 0-0 consécutifs
-          if (zeroScoreConsecutifs >= 5) {
+          // Arrêt strict si 6 matchs 0-0 consécutifs
+          if (zeroScoreConsecutifs >= 6) {
             stopScan = true;
             break; 
           }
         } else {
           err++;
-          if (err >= 6) {
+          if (err >= 7) {
             stopScan = true;
             break;
           }
