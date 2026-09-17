@@ -245,7 +245,7 @@ async function chargerDonnees() {
   btnCharger.disabled = true;
   teamSelect.disabled = true;
   seasonSelect.disabled = true;
-  afficherStatus("Récupération de la poule en cours (Mode rapide)...", "loading");
+  afficherStatus("Récupération de la poule en cours...", "loading");
 
   try {
     const matchInitial = await fetchMatch(targetUrl);
