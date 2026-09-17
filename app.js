@@ -422,17 +422,31 @@ function genererListeJoueurs(equipe, joueurs) {
   const joueursEquipe = joueurs.filter(j => String(j.equipeId) === String(equipe.id));
   joueursEquipe.sort((a, b) => (parseInt(b.buts) || 0) - (parseInt(a.buts) || 0));
 
-  let cartesJoueurs = joueursEquipe.map(j => `
+  let cartesJoueurs = joueursEquipe.map(j => {
+    // Formatage du prénom (1ère lettre majuscule, reste minuscule)
+    const prenomStr = j.prenom ? j.prenom.trim() : "";
+    const prenomFormate = prenomStr ? prenomStr.charAt(0).toUpperCase() + prenomStr.slice(1).toLowerCase() : "";
+    
+    // Formatage du nom (Tout en majuscules)
+    const nomFormate = j.nom ? j.nom.trim().toUpperCase() : "";
+    
+    // Gestion du score et du pluriel
+    const nbButs = parseInt(j.buts) || 0;
+    const labelButs = nbButs <= 1 ? "but" : "buts";
+
+    return `
     <div class="favorite-item">
       <div class="favorite-item-content">
         <div class="favorite-item-icon">${j.numero || "-"}</div>
-        <div class="favorite-item-name">${j.prenom || ""} ${j.nom || ""}</div>
+        <div class="favorite-item-name">${prenomFormate} ${nomFormate}</div>
       </div>
-      <div class="score-container">
-        <span class="match-score">${parseInt(j.buts) || 0}</span>
+      <div class="score-container" style="display: flex; align-items: baseline; gap: 4px;">
+        <span class="match-score">${nbButs}</span>
+        <span style="font-size: 11px; font-weight: 500; color: #888;">${labelButs}</span>
       </div>
     </div>
-  `).join("");
+    `;
+  }).join("");
 
   if (joueursEquipe.length === 0) cartesJoueurs = `<div class="empty-state">Aucun joueur répertorié.</div>`;
 
