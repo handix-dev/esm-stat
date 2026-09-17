@@ -50,6 +50,8 @@ const btnTabButeurs = document.getElementById("btnTabButeurs");
 const subToggleButeurs = document.getElementById("subToggleButeurs");
 const btnSortButs = document.getElementById("btnSortButs");
 const btnSortRatio = document.getElementById("btnSortRatio");
+const filterButeursContainer = document.getElementById("filterButeursContainer");
+const teamFilterButeurs = document.getElementById("teamFilterButeurs");
 
 // DOM : Navigation
 const navItems = document.querySelectorAll(".nav-item");
@@ -106,6 +108,7 @@ function init() {
   btnTabButeurs.addEventListener("click", () => showClassementTab("buteurs"));
   btnSortButs.addEventListener("click", () => { modeButeurs = "buts"; updateButeursUI(); });
   btnSortRatio.addEventListener("click", () => { modeButeurs = "ratio"; updateButeursUI(); });
+  teamFilterButeurs.addEventListener("change", genererClassementButeurs);
 }
 
 function updateSeasonSelect() {
@@ -310,6 +313,7 @@ async function chargerDonnees() {
       return dA - dB;
     });
 
+    updateTeamFilterButeurs();
     genererVuePoule();
     genererClassements();
     switchTab("vue-poule");
@@ -500,6 +504,23 @@ function genererListeJoueurs(equipe, joueurs) {
 /* ============================================================
    RENDU VUE : CLASSEMENT
    ============================================================ */
+function updateTeamFilterButeurs() {
+  teamFilterButeurs.innerHTML = `<option value="all" selected>Tous les clubs</option>`;
+  const equipesNoms = new Set();
+  
+  listeMatchsPoule.forEach(m => {
+    if (m.equipe1?.libelle) equipesNoms.add(m.equipe1.libelle);
+    if (m.equipe2?.libelle) equipesNoms.add(m.equipe2.libelle);
+  });
+
+  Array.from(equipesNoms).sort().forEach(nom => {
+    const option = document.createElement("option");
+    option.value = nom;
+    option.textContent = nom;
+    teamFilterButeurs.appendChild(option);
+  });
+}
+
 function genererClassements() {
   classementToggles.style.display = "block";
   genererClassementEquipes();
@@ -547,6 +568,8 @@ function genererClassementEquipes() {
 
 function genererClassementButeurs() {
   const joueurs = {};
+  const selectedTeam = teamFilterButeurs.value;
+
   listeMatchsPoule.forEach(m => {
     if (!m.statsJoueurs) return;
     const { s1, s2 } = ObtenirScoresMatch(m);
@@ -557,10 +580,14 @@ function genererClassementButeurs() {
     if (m.equipe2) eqMap[String(m.equipe2.id)] = m.equipe2.libelle;
 
     m.statsJoueurs.forEach(j => {
+      const nomEquipe = eqMap[String(j.equipeId)];
+      
+      if (selectedTeam !== "all" && nomEquipe !== selectedTeam) return;
+
       const key = `${j.prenom}_${j.nom}_${j.equipeId}`;
       const buts = parseInt(j.buts, 10) || 0;
       if (!joueurs[key]) {
-        joueurs[key] = { nom: `${j.prenom || ""} ${j.nom || ""}`.trim(), equipe: eqMap[String(j.equipeId)], buts: 0, matchs: 0 };
+        joueurs[key] = { nom: `${j.prenom || ""} ${j.nom || ""}`.trim(), equipe: nomEquipe, buts: 0, matchs: 0 };
       }
       joueurs[key].buts += buts;
       joueurs[key].matchs += 1;
@@ -572,23 +599,37 @@ function genererClassementButeurs() {
   listeJoueurs.sort((a, b) => modeButeurs === "ratio" ? b.ratio - a.ratio || b.buts - a.buts : b.buts - a.buts || b.ratio - a.ratio);
 
   let html = `<table><thead><tr><th>#</th><th style="text-align:left;">Joueur</th><th>Buts</th><th>Moy.</th></tr></thead><tbody>`;
-  listeJoueurs.slice(0, 50).forEach((j, idx) => {
-    html += `<tr><td class="td-bold">${idx + 1}</td><td style="text-align:left;">
-      <div class="td-bold">${j.nom}</div>
-      <div style="font-size: 10px; color: var(--text-muted);">${j.equipe}</div>
-    </td><td class="td-bold">${j.buts}</td><td>${j.ratio}</td></tr>`;
-  });
+  
+  if (listeJoueurs.length === 0) {
+      html += `<tr><td colspan="4" class="empty-state" style="border: none;">Aucun buteur trouvé pour cette sélection.</td></tr>`;
+  } else {
+      listeJoueurs.slice(0, 50).forEach((j, idx) => {
+        html += `<tr><td class="td-bold">${idx + 1}</td><td style="text-align:left;">
+          <div class="td-bold">${j.nom}</div>
+          <div style="font-size: 10px; color: var(--text-muted);">${j.equipe}</div>
+        </td><td class="td-bold">${j.buts}</td><td>${j.ratio}</td></tr>`;
+      });
+  }
+  
   html += `</tbody></table>`;
   vueButeurs.innerHTML = html;
 }
 
 function showClassementTab(tab) {
   if (tab === "equipes") {
-    vueEquipes.style.display = "block"; vueButeurs.style.display = "none"; subToggleButeurs.style.display = "none";
-    btnTabEquipes.classList.add("active"); btnTabButeurs.classList.remove("active");
+    vueEquipes.style.display = "block"; 
+    vueButeurs.style.display = "none"; 
+    subToggleButeurs.style.display = "none";
+    filterButeursContainer.style.display = "none";
+    btnTabEquipes.classList.add("active"); 
+    btnTabButeurs.classList.remove("active");
   } else {
-    vueEquipes.style.display = "none"; vueButeurs.style.display = "block"; subToggleButeurs.style.display = "flex";
-    btnTabButeurs.classList.add("active"); btnTabEquipes.classList.remove("active");
+    vueEquipes.style.display = "none"; 
+    vueButeurs.style.display = "block"; 
+    subToggleButeurs.style.display = "flex";
+    filterButeursContainer.style.display = "flex";
+    btnTabButeurs.classList.add("active"); 
+    btnTabEquipes.classList.remove("active");
   }
 }
 
