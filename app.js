@@ -119,7 +119,15 @@ function updateSeasonSelect() {
   saisonsKeys.forEach(saison => {
     const option = document.createElement("option");
     option.value = saisons[saison];
-    option.textContent = `Saison ${saison}`;
+    
+    // Transforme "2025-2026" en "25/26"
+    const annees = saison.split('-');
+    let texteSaison = saison;
+    if (annees.length === 2) {
+      texteSaison = `${annees[0].slice(-2)}/${annees[1].slice(-2)}`;
+    }
+    
+    option.textContent = texteSaison;
     seasonSelect.appendChild(option);
   });
 }
