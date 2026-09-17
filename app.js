@@ -62,6 +62,22 @@ let listeMatchsPoule = [];
 let modeButeurs = "buts"; // "buts" ou "ratio"
 
 /* ============================================================
+   GESTION DU CACHE
+   ============================================================ */
+function gererCacheMensuel() {
+  const dateActuelle = new Date();
+  const moisCourant = dateActuelle.getFullYear() + "-" + (dateActuelle.getMonth() + 1); 
+  
+  const dernierMoisCache = localStorage.getItem("moisCacheApp");
+  
+  if (dernierMoisCache !== moisCourant) {
+    localStorage.clear();
+    localStorage.setItem("moisCacheApp", moisCourant);
+    console.log("Nouveau mois : le cache a été vidé.");
+  }
+}
+
+/* ============================================================
    UTILITAIRES (CORRECTION LOGOS)
    ============================================================ */
 function nettoyerUrlLogo(rawUrl) {
@@ -90,6 +106,8 @@ function nettoyerUrlLogo(rawUrl) {
    INITIALISATION
    ============================================================ */
 function init() {
+  gererCacheMensuel();
+
   for (const [id, equipe] of Object.entries(EQUIPES_CLUB)) {
     const option = document.createElement("option");
     option.value = id;
@@ -158,7 +176,7 @@ function afficherStatus(message, type = "") {
 }
 
 /* ============================================================
-   EXTRACTION DES DONNÉES
+   EXTRACTION DES DONNÉES ET MISE EN CACHE
    ============================================================ */
 function extraireDonnees(html) {
   const parser = new DOMParser();
@@ -203,12 +221,27 @@ function extraireDonnees(html) {
 }
 
 async function fetchMatch(url) {
+  const cache = localStorage.getItem(url);
+  if (cache) {
+    return JSON.parse(cache);
+  }
+
   try {
     const proxyUrl = WORKER_URL + "?url=" + encodeURIComponent(url);
     const response = await fetch(proxyUrl);
     if (!response.ok) return null;
+    
     const html = await response.text();
-    return html ? extraireDonnees(html) : null;
+    const data = html ? extraireDonnees(html) : null;
+    
+    if (data) {
+      const { s1, s2 } = ObtenirScoresMatch(data);
+      if (s1 > 0 || s2 > 0) {
+        localStorage.setItem(url, JSON.stringify(data));
+      }
+    }
+    
+    return data;
   } catch {
     return null;
   }
@@ -227,9 +260,6 @@ function ObtenirScoresMatch(m) {
 }
 
 /* ============================================================
-   LOGIQUE INTELLIGENTE DE CHARGEMENT
-   ============================================================ */
-/* ============================================================
    LOGIQUE INTELLIGENTE DE CHARGEMENT (Parallélisée)
    ============================================================ */
 async function chargerDonnees() {
@@ -245,7 +275,7 @@ async function chargerDonnees() {
   btnCharger.disabled = true;
   teamSelect.disabled = true;
   seasonSelect.disabled = true;
-  afficherStatus("Récupération de la poule en cours...", "loading");
+  afficherStatus("Récupération de la poule en cours (Mode rapide)...", "loading");
 
   try {
     const matchInitial = await fetchMatch(targetUrl);
