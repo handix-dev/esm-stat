@@ -78,7 +78,6 @@ header {
   background: var(--bg-card);
   color: var(--text-primary);
   box-shadow: var(--shadow);
-  appearance: none;
   outline: none;
   cursor: pointer;
 }
