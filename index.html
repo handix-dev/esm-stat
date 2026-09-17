@@ -29,13 +29,17 @@
   <main>
     <section class="page">
 
-      <!-- Sélecteur d'équipe -->
+      <!-- Sélecteur d'équipe et de saison -->
       <div class="search-container">
-        <select id="teamSelect" class="search-input">
-          <option value="" disabled selected>Choisir une équipe...</option>
-          <!-- Les options seront générées par JavaScript -->
-        </select>
-        <button id="btnCharger" class="search-button" title="Charger les données">
+        <div style="display: flex; flex-direction: column; gap: 8px; width: calc(100% - 50px);">
+          <select id="teamSelect" class="search-input" style="width: 100%;">
+            <option value="" disabled selected>Choisir une équipe...</option>
+          </select>
+          <select id="seasonSelect" class="search-input" style="width: 100%;">
+            <option value="" disabled selected>Choisir une saison...</option>
+          </select>
+        </div>
+        <button id="btnCharger" class="search-button" title="Charger les données" style="top: 50%;">
           <i class="ri-refresh-line"></i>
         </button>
       </div>
@@ -49,7 +53,7 @@
           <div class="section-title">Calendrier & Résultats</div>
         </div>
         <div id="listeMatchsContainer" class="data-container">
-          <div class="empty-state">Sélectionnez une équipe pour voir les matchs.</div>
+          <div class="empty-state">Sélectionnez une équipe et une saison pour voir les matchs.</div>
         </div>
       </div>
 
