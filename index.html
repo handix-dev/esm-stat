@@ -29,14 +29,16 @@
   <main>
     <section class="page">
 
-      <!-- Sélecteur d'équipe -->
-      <div class="search-container">
-        <select id="teamSelect" class="search-input">
-          <option value="" disabled selected>Choisir une équipe...</option>
-          <!-- Les options seront générées par JavaScript -->
-        </select>
-        <button id="btnCharger" class="search-button" title="Charger les données">
-          <i class="ri-refresh-line"></i>
+      <!-- Filtres de Saison et Équipe -->
+      <div class="filters-wrapper">
+        <div class="select-group">
+          <select id="seasonSelect" class="search-input"></select>
+          <select id="teamSelect" class="search-input">
+            <option value="" disabled selected>Choisir une équipe...</option>
+          </select>
+        </div>
+        <button id="btnCharger" class="btn-charger-full" title="Charger les données">
+          <i class="ri-download-cloud-2-line"></i> Charger les données
         </button>
       </div>
 
