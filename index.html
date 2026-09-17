@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mon Club - Handix</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;800&display=swap" rel="stylesheet">
+
+  <!-- RemixIcon -->
+  <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <header>
+    <div class="welcome-section">
+      <div class="welcome-title">
+        <i class="ri-shield-user-fill"></i> Mon Club
+      </div>
+      <div class="welcome-text">Suivi des équipes et statistiques</div>
+    </div>
+  </header>
+
+  <main>
+    <section class="page">
+
+      <!-- Sélecteur d'équipe (Remplace la barre de recherche) -->
+      <div class="search-container">
+        <select id="teamSelect" class="search-input">
+          <option value="" disabled selected>Choisir une équipe...</option>
+          <!-- Les options seront générées par JavaScript -->
+        </select>
+        <button id="btnCharger" class="search-button" title="Charger les données">
+          <i class="ri-refresh-line"></i>
+        </button>
+      </div>
+
+      <!-- Zone de statuts (chargement, erreurs) -->
+      <div id="status"></div>
+
+      <!-- VUE 1 : POULE (Liste des matchs) -->
+      <div id="vue-poule" class="view active">
+        <div class="section-header">
+          <div class="section-title">Calendrier & Résultats</div>
+        </div>
+        <div id="listeMatchsContainer" class="data-container">
+          <div class="empty-state">Sélectionnez une équipe pour voir les matchs.</div>
+        </div>
+      </div>
+
+      <!-- VUE 2 : STATS (Détail d'un match) -->
+      <div id="vue-stats" class="view" style="display: none;">
+        <div class="section-header">
+          <div class="section-title">Détail du Match</div>
+        </div>
+        <div id="detailMatchContainer" class="data-container">
+          <div class="empty-state">Cliquez sur un match dans l'onglet "Poule" pour voir les statistiques.</div>
+        </div>
+      </div>
+
+      <!-- VUE 3 : CLASSEMENT -->
+      <div id="vue-classement" class="view" style="display: none;">
+        <div id="classementToggles" style="display: none; margin-bottom: 16px;">
+          <div style="display: flex; gap: 8px; justify-content: center; margin-bottom: 8px;">
+            <button id="btnTabEquipes" class="btn-toggle active"><i class="ri-trophy-line"></i> Équipes</button>
+            <button id="btnTabButeurs" class="btn-toggle"><i class="ri-user-star-line"></i> Buteurs</button>
+          </div>
+          <div id="subToggleButeurs" style="display: none; gap: 8px; justify-content: center;">
+            <button id="btnSortButs" class="btn-toggle active"><i class="ri-football-line"></i> Total Buts</button>
+            <button id="btnSortRatio" class="btn-toggle"><i class="ri-calculator-line"></i> Moyenne / Match</button>
+          </div>
+        </div>
+        <div id="vueEquipes" class="data-container" style="overflow-x: auto;"></div>
+        <div id="vueButeurs" class="data-container" style="display: none; overflow-x: auto;"></div>
+      </div>
+
+    </section>
+  </main>
+
+  <!-- Bottom Navigation -->
+  <nav class="bottom-nav">
+    <div class="nav-item active" data-target="vue-poule">
+      <div class="nav-icon"><i class="ri-layout-grid-line"></i></div>
+      <div class="nav-label">Poule</div>
+    </div>
+    <div class="nav-item" data-target="vue-stats">
+      <div class="nav-icon"><i class="ri-bar-chart-box-line"></i></div>
+      <div class="nav-label">Stats</div>
+    </div>
+    <div class="nav-item" data-target="vue-classement">
+      <div class="nav-icon"><i class="ri-trophy-line"></i></div>
+      <div class="nav-label">Classement</div>
+    </div>
+  </nav>
+
+  <script src="app.js"></script>
+</body>
+</html>
