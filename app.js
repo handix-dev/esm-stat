@@ -1,7 +1,6 @@
 /* ============================================================
    CONFIGURATION DES ÉQUIPES DU CLUB
    ============================================================ */
-// 🔴 À MODIFIER : Insère ici l'URL d'un match de la poule pour chaque équipe
 const EQUIPES_CLUB = [
   { id: "SM_A", nom: "Senior Masculin A", url: "https://www.ffhandball.fr/competitions/saison-2026-2027-22/national/nationale-3-masculine-2026-2027-32502/poule-190854/rencontre-2640089/" },
   { id: "SM_B", nom: "Senior Masculin B", url: "https://www.ffhandball.fr/competitions/saison-2026-2027-22/regional/m002-excellence-masculine-32523/poule-190995/rencontre-2641016/" },
@@ -12,7 +11,7 @@ const EQUIPES_CLUB = [
    CONSTANTES & ÉLÉMENTS DOM
    ============================================================ */
 const WORKER_URL = "https://silent-salad-f4a2.handix-officiel.workers.dev/";
-const LOGO_DEFAULT = "https://cdn-icons-png.flaticon.com/512/3358/3358994.png"; // Logo bouclier par défaut
+const LOGO_DEFAULT = "https://cdn-icons-png.flaticon.com/512/3358/3358994.png";
 
 // DOM : Sélecteur et Bouton
 const teamSelect = document.getElementById("teamSelect");
@@ -45,7 +44,6 @@ let modeButeurs = "buts"; // "buts" ou "ratio"
    INITIALISATION
    ============================================================ */
 function init() {
-  // Remplir le select
   EQUIPES_CLUB.forEach(equipe => {
     const option = document.createElement("option");
     option.value = equipe.url;
@@ -53,15 +51,12 @@ function init() {
     teamSelect.appendChild(option);
   });
 
-  // Gestion des événements
   btnCharger.addEventListener("click", chargerDonnees);
   
-  // Navigation Tabs
   navItems.forEach(item => {
     item.addEventListener("click", () => switchTab(item.getAttribute("data-target")));
   });
 
-  // Toggles Classement
   btnTabEquipes.addEventListener("click", () => showClassementTab("equipes"));
   btnTabButeurs.addEventListener("click", () => showClassementTab("buteurs"));
   btnSortButs.addEventListener("click", () => { modeButeurs = "buts"; updateButeursUI(); });
@@ -85,7 +80,7 @@ function afficherStatus(message, type = "") {
     statusDiv.innerHTML = `<div class="error-message"><i class="ri-error-warning-line"></i> ${message}</div>`;
   } else if (type === "success") {
     statusDiv.innerHTML = `<div class="success-message"><i class="ri-checkbox-circle-line"></i> ${message}</div>`;
-    setTimeout(() => statusDiv.innerHTML = "", 3000); // Disparaît après 3s
+    setTimeout(() => statusDiv.innerHTML = "", 3000);
   }
 }
 
@@ -164,74 +159,80 @@ async function chargerDonnees() {
     return;
   }
 
-  // RÉINITIALISATION DE L'ONGLET STATS QUAND ON CHARGE UNE NOUVELLE EQUIPE
   detailMatchContainer.innerHTML = `<div class="empty-state">Cliquez sur un match dans l'onglet "Poule" pour voir les statistiques.</div>`;
-
   listeMatchsPoule = [];
+  
   btnCharger.disabled = true;
   teamSelect.disabled = true;
   afficherStatus("Récupération de la poule en cours...", "loading");
 
-  const matchInitial = await fetchMatch(targetUrl);
-  if (!matchInitial) {
-    afficherStatus("Impossible de charger les données.", "error");
+  try {
+    const matchInitial = await fetchMatch(targetUrl);
+    if (!matchInitial) {
+      afficherStatus("Impossible de charger les données.", "error");
+      return; 
+    }
+
+    listeMatchsPoule.push(matchInitial);
+    const urlParts = targetUrl.match(/(.*\/rencontre-)(\d+)(\/?.*)/);
+    
+    if (!urlParts) {
+      afficherStatus("Format de l'URL non reconnu.", "error");
+      return;
+    }
+
+    const baseUrl = urlParts[1];
+    const baseId = parseInt(urlParts[2], 10);
+    const endUrl = urlParts[3] || "";
+
+    let err = 0, zeroZero = 0, currentId = baseId + 1;
+    while (err < 2 && zeroZero < 4) {
+      const data = await fetchMatch(`${baseUrl}${currentId}${endUrl}`);
+      if (data) {
+        listeMatchsPoule.push(data);
+        err = 0;
+        const { s1, s2 } = ObtenirScoresMatch(data);
+        zeroZero = (s1 === 0 && s2 === 0) ? zeroZero + 1 : 0;
+      } else { err++; }
+      currentId++;
+    }
+
+    err = 0; zeroZero = 0; currentId = baseId - 1;
+    while (err < 2 && zeroZero < 4 && currentId > 0) {
+      const data = await fetchMatch(`${baseUrl}${currentId}${endUrl}`);
+      if (data) {
+        listeMatchsPoule.unshift(data);
+        err = 0;
+        const { s1, s2 } = ObtenirScoresMatch(data);
+        zeroZero = (s1 === 0 && s2 === 0) ? zeroZero + 1 : 0;
+      } else { err++; }
+      currentId--;
+    }
+
+    afficherStatus(`Terminé ! ${listeMatchsPoule.length} matchs trouvés.`, "success");
+    
+    listeMatchsPoule.sort((a, b) => {
+      const dA = a.rematch?.rencontre?.date ? new Date(a.rematch.rencontre.date.replace(" ", "T")) : 0;
+      const dB = b.rematch?.rencontre?.date ? new Date(b.rematch.rencontre.date.replace(" ", "T")) : 0;
+      return dA - dB;
+    });
+
+    genererVuePoule();
+    genererClassements();
+    switchTab("vue-poule");
+
+  } catch (error) {
+    console.error(error);
+    afficherStatus("Une erreur technique est survenue.", "error");
+  } finally {
+    // Cette sécurité garantit que les contrôles seront TOUJOURS réactivés, même si le code plante.
     btnCharger.disabled = false;
     teamSelect.disabled = false;
-    return;
   }
-
-  listeMatchsPoule.push(matchInitial);
-  const urlParts = targetUrl.match(/(.*\/rencontre-)(\d+)(\/?.*)/);
-  if (!urlParts) return;
-
-  const baseUrl = urlParts[1];
-  const baseId = parseInt(urlParts[2], 10);
-  const endUrl = urlParts[3] || "";
-
-  // Scan avant
-  let err = 0, zeroZero = 0, currentId = baseId + 1;
-  while (err < 2 && zeroZero < 4) {
-    const data = await fetchMatch(`${baseUrl}${currentId}${endUrl}`);
-    if (data) {
-      listeMatchsPoule.push(data);
-      err = 0;
-      const { s1, s2 } = ObtenirScoresMatch(data);
-      zeroZero = (s1 === 0 && s2 === 0) ? zeroZero + 1 : 0;
-    } else { err++; }
-    currentId++;
-  }
-
-  // Scan arrière
-  err = 0; zeroZero = 0; currentId = baseId - 1;
-  while (err < 2 && zeroZero < 4 && currentId > 0) {
-    const data = await fetchMatch(`${baseUrl}${currentId}${endUrl}`);
-    if (data) {
-      listeMatchsPoule.unshift(data);
-      err = 0;
-      const { s1, s2 } = ObtenirScoresMatch(data);
-      zeroZero = (s1 === 0 && s2 === 0) ? zeroZero + 1 : 0;
-    } else { err++; }
-    currentId--;
-  }
-
-  btnCharger.disabled = false;
-  teamSelect.disabled = false;
-  afficherStatus(`Terminé ! ${listeMatchsPoule.length} matchs trouvés.`, "success");
-  
-  // Trier chronologiquement la poule globale avant de la grouper
-  listeMatchsPoule.sort((a, b) => {
-    const dA = a.rematch?.rencontre?.date ? new Date(a.rematch.rencontre.date.replace(" ", "T")) : 0;
-    const dB = b.rematch?.rencontre?.date ? new Date(b.rematch.rencontre.date.replace(" ", "T")) : 0;
-    return dA - dB;
-  });
-
-  genererVuePoule();
-  genererClassements();
-  switchTab("vue-poule"); // Retourne à l'onglet Poule par défaut
 }
 
 /* ============================================================
-   RENDU VUE : POULE (Groupé par Journées avec Date, Heure, Logos)
+   RENDU VUE : POULE
    ============================================================ */
 function genererVuePoule() {
   listeMatchsContainer.innerHTML = "";
@@ -240,11 +241,9 @@ function genererVuePoule() {
     return;
   }
 
-  // Regrouper les matchs par numéro de journée
   const matchsParJournee = {};
   
   listeMatchsPoule.forEach(m => {
-    // Tente de récupérer le numéro de la journée, sinon "Matchs supplémentaires"
     const journee = m.rematch?.rencontre?.journeeNumero || "NC";
     if (!matchsParJournee[journee]) {
       matchsParJournee[journee] = [];
@@ -252,7 +251,6 @@ function genererVuePoule() {
     matchsParJournee[journee].push(m);
   });
 
-  // Trier les journées (les numéros en premier, "NC" à la fin)
   const journeesTriees = Object.keys(matchsParJournee).sort((a, b) => {
     if (a === "NC") return 1;
     if (b === "NC") return -1;
@@ -260,11 +258,9 @@ function genererVuePoule() {
   });
 
   journeesTriees.forEach(journee => {
-    // Création du bloc global pour la journée
     const blockJournee = document.createElement("div");
     blockJournee.className = "journee-block";
 
-    // En-tête de la journée
     const titreJournee = journee === "NC" ? "Matchs Hors Journées" : `Journée ${journee}`;
     blockJournee.innerHTML = `
       <div class="journee-header"><i class="ri-calendar-event-line" style="margin-right: 6px;"></i> ${titreJournee}</div>
@@ -273,12 +269,10 @@ function genererVuePoule() {
 
     const containerMatchs = blockJournee.querySelector(".journee-matchs");
 
-    // Ajouter tous les matchs de cette journée
     matchsParJournee[journee].forEach((m) => {
       const eq1 = m.equipe1?.libelle || "Équipe 1";
       const eq2 = m.equipe2?.libelle || "Équipe 2";
       
-      // Récupération des logos (ou logo par défaut)
       const logo1 = m.equipe1?.logo || LOGO_DEFAULT;
       const logo2 = m.equipe2?.logo || LOGO_DEFAULT;
 
@@ -288,7 +282,6 @@ function genererVuePoule() {
       if (m.rematch?.rencontre?.date) {
         const d = new Date(m.rematch.rencontre.date.replace(" ", "T"));
         if (!isNaN(d.getTime())) {
-          // Formatage : "14 oct. à 20:30"
           const jourMois = d.toLocaleDateString("fr-FR", { day: "2-digit", month: "short" });
           const heure = d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
           dateStr = `<i class="ri-time-line"></i> ${jourMois} à ${heure}`;
@@ -312,11 +305,9 @@ function genererVuePoule() {
         </div>
       `;
       
-      // Au clic, ouvre le match dans l'onglet STATS
       card.addEventListener("click", () => {
         afficherMatchDetails(m);
         switchTab("vue-stats");
-        // Optionnel : remonter tout en haut de la page lors du changement d'onglet
         window.scrollTo({ top: 0, behavior: 'smooth' });
       });
 
@@ -328,7 +319,7 @@ function genererVuePoule() {
 }
 
 /* ============================================================
-   RENDU VUE : STATS (Détails d'un match)
+   RENDU VUE : STATS
    ============================================================ */
 function afficherMatchDetails(data) {
   detailMatchContainer.innerHTML = "";
@@ -367,7 +358,7 @@ function afficherMatchDetails(data) {
 function genererListeJoueurs(equipe, joueurs) {
   if (!equipe || !joueurs) return "";
   const joueursEquipe = joueurs.filter(j => String(j.equipeId) === String(equipe.id));
-  joueursEquipe.sort((a, b) => (parseInt(b.buts) || 0) - (parseInt(a.buts) || 0)); // Tri par buts
+  joueursEquipe.sort((a, b) => (parseInt(b.buts) || 0) - (parseInt(a.buts) || 0));
 
   let cartesJoueurs = joueursEquipe.map(j => `
     <div class="favorite-item">
@@ -492,10 +483,6 @@ function updateButeursUI() {
   if (modeButeurs === "buts") { btnSortButs.classList.add("active"); btnSortRatio.classList.remove("active"); } 
   else { btnSortRatio.classList.add("active"); btnSortButs.classList.remove("active"); }
   genererClassementButeurs();
-}
-
-// Lancer l'initialisation
-init();
 }
 
 // Lancer l'initialisation
