@@ -76,6 +76,12 @@
             <button id="btnSortButs" class="btn-toggle active"><i class="ri-football-line"></i> Total Buts</button>
             <button id="btnSortRatio" class="btn-toggle"><i class="ri-calculator-line"></i> Moyenne / Match</button>
           </div>
+          <!-- Nouveau Filtre Équipe -->
+          <div id="filterButeursContainer" style="display: none; justify-content: center; margin-top: 12px;">
+            <select id="teamFilterButeurs" class="search-input" style="padding: 8px 12px; margin: 0; width: auto; min-width: 200px;">
+              <option value="all" selected>Tous les clubs</option>
+            </select>
+          </div>
         </div>
         <div id="vueEquipes" class="data-container" style="overflow-x: auto;"></div>
         <div id="vueButeurs" class="data-container" style="display: none; overflow-x: auto;"></div>
