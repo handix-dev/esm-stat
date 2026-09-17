@@ -1,11 +1,29 @@
 /* ============================================================
-   CONFIGURATION DES ÉQUIPES DU CLUB
+   CONFIGURATION DES ÉQUIPES DU CLUB (Par Saison)
    ============================================================ */
-const EQUIPES_CLUB = [
-  { id: "SM_A", nom: "Senior Masculin A", url: "https://www.ffhandball.fr/competitions/saison-2026-2027-22/national/nationale-3-masculine-2026-2027-32502/poule-190854/rencontre-2640089/" },
-  { id: "SM_B", nom: "Senior Masculin B", url: "https://www.ffhandball.fr/competitions/saison-2026-2027-22/regional/m002-excellence-masculine-32523/poule-190995/rencontre-2641016/" },
-  { id: "SF_A", nom: "Senior Masculin C", url: "https://www.ffhandball.fr/competitions/saison-2026-2027-22/regional/m004-1re-division-territoriale-masculine-32735/poule-192630/rencontre-2674902/" }
-];
+const EQUIPES_CLUB = {
+  "SM_A": {
+    nom: "Senior Masculin A",
+    saisons: {
+      "2026-2027": "https://www.ffhandball.fr/competitions/saison-2026-2027-22/national/nationale-3-masculine-2026-2027-32502/poule-190854/rencontre-2640089/",
+      "2025-2026": "https://www.ffhandball.fr/competitions/saison-2025-2026-21/national/nationale-3-masculine-2025-26-28559/poule-169509/rencontre-2399931/"
+    }
+  },
+  "SM_B": {
+    nom: "Senior Masculin B",
+    saisons: {
+      "2026-2027": "https://www.ffhandball.fr/competitions/saison-2026-2027-22/regional/m002-excellence-masculine-32523/poule-190995/rencontre-2641016/",
+      "2025-2026": "https://www.ffhandball.fr/competitions/saison-2025-2026-21/regional/m002-excellence-masculine-28409/poule-168582/rencontre-2379993/"
+    }
+  },
+  "SM_C": {
+    nom: "Senior Masculin C",
+    saisons: {
+      "2026-2027": "https://www.ffhandball.fr/competitions/saison-2026-2027-22/regional/m004-1re-division-territoriale-masculine-32735/poule-192630/rencontre-2674902/",
+      "2025-2026": "https://www.ffhandball.fr/competitions/saison-2025-2026-21/regional/m004-1re-division-territoriale-masculine-28930/poule-172193/rencontre-2429738/"
+    }
+  }
+};
 
 /* ============================================================
    CONSTANTES & ÉLÉMENTS DOM
@@ -13,8 +31,9 @@ const EQUIPES_CLUB = [
 const WORKER_URL = "https://silent-salad-f4a2.handix-officiel.workers.dev/";
 const LOGO_DEFAULT = "https://cdn-icons-png.flaticon.com/512/3358/3358994.png";
 
-// DOM : Sélecteur et Bouton
+// DOM : Sélecteurs et Bouton
 const teamSelect = document.getElementById("teamSelect");
+const seasonSelect = document.getElementById("seasonSelect");
 const btnCharger = document.getElementById("btnCharger");
 const statusDiv = document.getElementById("status");
 
@@ -69,13 +88,14 @@ function nettoyerUrlLogo(rawUrl) {
    INITIALISATION
    ============================================================ */
 function init() {
-  EQUIPES_CLUB.forEach(equipe => {
+  for (const [id, equipe] of Object.entries(EQUIPES_CLUB)) {
     const option = document.createElement("option");
-    option.value = equipe.url;
+    option.value = id;
     option.textContent = equipe.nom;
     teamSelect.appendChild(option);
-  });
+  }
 
+  teamSelect.addEventListener("change", updateSeasonSelect);
   btnCharger.addEventListener("click", chargerDonnees);
   
   navItems.forEach(item => {
@@ -86,6 +106,22 @@ function init() {
   btnTabButeurs.addEventListener("click", () => showClassementTab("buteurs"));
   btnSortButs.addEventListener("click", () => { modeButeurs = "buts"; updateButeursUI(); });
   btnSortRatio.addEventListener("click", () => { modeButeurs = "ratio"; updateButeursUI(); });
+}
+
+function updateSeasonSelect() {
+  seasonSelect.innerHTML = "";
+  const teamId = teamSelect.value;
+  if (!teamId || !EQUIPES_CLUB[teamId]) return;
+
+  const saisons = EQUIPES_CLUB[teamId].saisons;
+  const saisonsKeys = Object.keys(saisons).sort().reverse();
+
+  saisonsKeys.forEach(saison => {
+    const option = document.createElement("option");
+    option.value = saisons[saison];
+    option.textContent = `Saison ${saison}`;
+    seasonSelect.appendChild(option);
+  });
 }
 
 function switchTab(targetId) {
@@ -183,9 +219,9 @@ function ObtenirScoresMatch(m) {
    LOGIQUE INTELLIGENTE DE CHARGEMENT
    ============================================================ */
 async function chargerDonnees() {
-  const targetUrl = teamSelect.value;
+  const targetUrl = seasonSelect.value;
   if (!targetUrl) {
-    afficherStatus("Veuillez sélectionner une équipe.", "error");
+    afficherStatus("Veuillez sélectionner une équipe et une saison.", "error");
     return;
   }
 
@@ -194,6 +230,7 @@ async function chargerDonnees() {
   
   btnCharger.disabled = true;
   teamSelect.disabled = true;
+  seasonSelect.disabled = true;
   afficherStatus("Récupération de la poule en cours...", "loading");
 
   try {
@@ -215,14 +252,11 @@ async function chargerDonnees() {
     const baseId = parseInt(urlParts[2], 10);
     const endUrl = urlParts[3] || "";
 
-    // On analyse où on en est dans la saison à partir du match de base
     const { s1: s1Init, s2: s2Init } = ObtenirScoresMatch(matchInitial);
     let premiereJourneeVue = parseInt(matchInitial.rematch?.rencontre?.journeeNumero, 10) || 0;
-    
-    // Traque la journée la plus avancée qui a été "jouée" (score > 0)
     let maxJourneeJouee = (s1Init > 0 || s2Init > 0) ? premiereJourneeVue : 0;
 
-    // SCAN VERS L'AVANT (Futur)
+    // SCAN VERS L'AVANT
     let err = 0, currentId = baseId + 1;
     while (err < 2) {
       const data = await fetchMatch(`${baseUrl}${currentId}${endUrl}`);
@@ -231,13 +265,11 @@ async function chargerDonnees() {
         const jNum = parseInt(data.rematch?.rencontre?.journeeNumero, 10) || 0;
 
         if (s1 > 0 || s2 > 0) {
-          // Si le match est joué, on met à jour notre repère de la saison
           maxJourneeJouee = Math.max(maxJourneeJouee, jNum);
         } else {
-          // Si le match n'est PAS joué, on vérifie si on est allé trop loin
           let limitJournee = maxJourneeJouee > 0 ? maxJourneeJouee + 1 : premiereJourneeVue;
           if (jNum > limitJournee) {
-            break; // On a atteint la DEUXIÈME journée à venir -> on stoppe le scan !
+            break;
           }
         }
         
@@ -249,7 +281,7 @@ async function chargerDonnees() {
       currentId++;
     }
 
-    // SCAN VERS L'ARRIÈRE (Passé) - On remonte jusqu'au début de la poule (les erreurs d'URL arrêteront le fetch)
+    // SCAN VERS L'ARRIÈRE
     err = 0; currentId = baseId - 1;
     while (err < 2 && currentId > 0) {
       const data = await fetchMatch(`${baseUrl}${currentId}${endUrl}`);
@@ -280,6 +312,7 @@ async function chargerDonnees() {
   } finally {
     btnCharger.disabled = false;
     teamSelect.disabled = false;
+    seasonSelect.disabled = false;
   }
 }
 
@@ -342,7 +375,6 @@ function genererVuePoule() {
         }
       }
 
-      // Esthétique : griser les scores à 0-0 pour les matchs à venir
       let scoreHTML = `<div class="match-score-box">${s1} - ${s2}</div>`;
       if (s1 === 0 && s2 === 0) {
         scoreHTML = `<div class="match-score-box" style="background: var(--bg-color); color: var(--text-muted); border: 1px dashed var(--border-color);">À venir</div>`;
@@ -423,14 +455,11 @@ function genererListeJoueurs(equipe, joueurs) {
   joueursEquipe.sort((a, b) => (parseInt(b.buts) || 0) - (parseInt(a.buts) || 0));
 
   let cartesJoueurs = joueursEquipe.map(j => {
-    // Formatage du prénom (1ère lettre majuscule, reste minuscule)
     const prenomStr = j.prenom ? j.prenom.trim() : "";
     const prenomFormate = prenomStr ? prenomStr.charAt(0).toUpperCase() + prenomStr.slice(1).toLowerCase() : "";
     
-    // Formatage du nom (Tout en majuscules)
     const nomFormate = j.nom ? j.nom.trim().toUpperCase() : "";
     
-    // Gestion du score et du pluriel
     const nbButs = parseInt(j.buts) || 0;
     const labelButs = nbButs <= 1 ? "but" : "buts";
 
