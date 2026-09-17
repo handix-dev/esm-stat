@@ -87,11 +87,17 @@ function afficherStatus(message, type = "") {
 /* ============================================================
    SCRAPING ET LOGIQUE DE RÉCUPÉRATION
    ============================================================ */
+/* ============================================================
+   SCRAPING ET LOGIQUE DE RÉCUPÉRATION
+   ============================================================ */
 function extraireDonnees(html) {
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, "text/html");
+  
+  // Vérifier si la page est une erreur 404
   if (doc.querySelector('smartfire-component[name="page-404"]')) return null;
 
+  // 1. Scraping des Joueurs
   const joueursComponent = doc.querySelector('smartfire-component[name="competitions---rencontre-liste-joueurs"]');
   if (!joueursComponent) return null;
 
@@ -103,6 +109,7 @@ function extraireDonnees(html) {
   let joueursData;
   try { joueursData = JSON.parse(ta.value); } catch { return null; }
 
+  // 2. Scraping du Score
   const scoreComponent = doc.querySelector('smartfire-component[name="competitions---competition-score"]');
   let scoreData = null;
   if (scoreComponent) {
@@ -114,6 +121,7 @@ function extraireDonnees(html) {
     }
   }
 
+  // 3. Scraping du Rematch (Infos générales de la rencontre)
   const rematchComponent = doc.querySelector('smartfire-component[name="competitions---rematch"]');
   let rematchData = null;
   if (rematchComponent) {
@@ -125,7 +133,38 @@ function extraireDonnees(html) {
     }
   }
 
+  // 4. RÉCUPÉRATION DES LOGOS VIA SCRAPING
+  let logoEq1 = null;
+  let logoEq2 = null;
+
+  // On cherche d'abord dans les composants (le plus fiable)
+  if (scoreData?.home?.logo) logoEq1 = scoreData.home.logo;
+  if (scoreData?.away?.logo) logoEq2 = scoreData.away.logo;
+
+  if (!logoEq1 && rematchData?.rencontre?.equipe1?.logo) logoEq1 = rematchData.rencontre.equipe1.logo;
+  if (!logoEq2 && rematchData?.rencontre?.equipe2?.logo) logoEq2 = rematchData.rencontre.equipe2.logo;
+
+  // Si on ne les a toujours pas, on scrape directement les balises images du DOM
+  if (!logoEq1 || !logoEq2) {
+    const images = Array.from(doc.querySelectorAll('img'));
+    
+    // On essaie de faire correspondre l'attribut alt avec le nom de l'équipe
+    if (joueursData.equipe1?.libelle) {
+      const img1 = images.find(img => img.alt && img.alt.includes(joueursData.equipe1.libelle));
+      if (img1) logoEq1 = img1.src;
+    }
+    if (joueursData.equipe2?.libelle) {
+      const img2 = images.find(img => img.alt && img.alt.includes(joueursData.equipe2.libelle));
+      if (img2) logoEq2 = img2.src;
+    }
+  }
+
+  // On force l'injection des vrais logos récupérés dans les données principales
+  if (joueursData.equipe1 && logoEq1) joueursData.equipe1.logo = logoEq1;
+  if (joueursData.equipe2 && logoEq2) joueursData.equipe2.logo = logoEq2;
+
   return { ...joueursData, score: scoreData, rematch: rematchData };
+}
 }
 
 async function fetchMatch(url) {
