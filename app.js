@@ -66,6 +66,9 @@ function nettoyerUrlLogo(rawUrl) {
     }
   }
 
+  // 5. CORRECTION WEBP : Forcer l'extension en .webp car la FFHB ne sert plus les .png/.jpg
+  decodedUrl = decodedUrl.replace(/\.(png|jpe?g)$/i, ".webp");
+
   return decodedUrl || LOGO_DEFAULT;
 }
 
