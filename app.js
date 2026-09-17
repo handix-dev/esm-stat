@@ -229,6 +229,9 @@ function ObtenirScoresMatch(m) {
 /* ============================================================
    LOGIQUE INTELLIGENTE DE CHARGEMENT
    ============================================================ */
+/* ============================================================
+   LOGIQUE INTELLIGENTE DE CHARGEMENT (Parallélisée)
+   ============================================================ */
 async function chargerDonnees() {
   const targetUrl = seasonSelect.value;
   if (!targetUrl) {
@@ -242,7 +245,7 @@ async function chargerDonnees() {
   btnCharger.disabled = true;
   teamSelect.disabled = true;
   seasonSelect.disabled = true;
-  afficherStatus("Récupération de la poule en cours...", "loading");
+  afficherStatus("Récupération de la poule en cours (Mode rapide)...", "loading");
 
   try {
     const matchInitial = await fetchMatch(targetUrl);
@@ -266,71 +269,104 @@ async function chargerDonnees() {
     const { s1: s1Init, s2: s2Init } = ObtenirScoresMatch(matchInitial);
     let zeroScoreConsecutifs = (s1Init === 0 && s2Init === 0) ? 1 : 0;
 
-    // SCAN VERS L'AVANT
+    // SCAN VERS L'AVANT (Par lot de 5)
     let err = 0, currentId = baseId + 1;
-    while (err < 6) {
-      const data = await fetchMatch(`${baseUrl}${currentId}${endUrl}`);
-      if (data) {
-        // ... (le reste du code reste identique) ...
-        listeMatchsPoule.push(data);
-        err = 0; 
-        if (zeroScoreConsecutifs >= 6) break;
-      } else { 
-        err++; 
+    let stopScan = false;
+
+    while (!stopScan && err < 6) {
+      const batchPromises = [];
+      for (let i = 0; i < 5; i++) {
+        batchPromises.push(fetchMatch(`${baseUrl}${currentId + i}${endUrl}`));
       }
-      currentId++;
-    }
 
-    // SCAN VERS L'ARRIÈRE
-    err = 0; 
-    currentId = baseId - 1;
-    zeroScoreConsecutifs = (s1Init === 0 && s2Init === 0) ? 1 : 0;
+      const resultats = await Promise.all(batchPromises);
 
-    while (err < 6 && currentId > 0) {
-      const data = await fetchMatch(`${baseUrl}${currentId}${endUrl}`);
-      if (data) {
-        // ... (le reste du code reste identique) ...
-        listeMatchsPoule.unshift(data);
-        err = 0; 
-        if (zeroScoreConsecutifs >= 6) break;
-      } else { 
-        err++; 
-      }
-      currentId--;
-    }
+      for (let i = 0; i < resultats.length; i++) {
+        const data = resultats[i];
+        if (data) {
+          err = 0; // Réinitialise les erreurs
+          const { s1, s2 } = ObtenirScoresMatch(data);
 
-    // SCAN VERS L'ARRIÈRE
-    err = 0; 
-    currentId = baseId - 1;
-    zeroScoreConsecutifs = (s1Init === 0 && s2Init === 0) ? 1 : 0;
+          // Compteur de 0-0 consécutifs
+          if (s1 === 0 && s2 === 0) {
+            zeroScoreConsecutifs++;
+          } else {
+            zeroScoreConsecutifs = 0;
+          }
 
-    while (err < 3 && currentId > 0) {
-      const data = await fetchMatch(`${baseUrl}${currentId}${endUrl}`);
-      if (data) {
-        const { s1, s2 } = ObtenirScoresMatch(data);
+          listeMatchsPoule.push(data);
 
-        // Compteur de scores 0-0 consécutifs
-        if (s1 === 0 && s2 === 0) {
-          zeroScoreConsecutifs++;
+          // Arrêt strict si 5 matchs 0-0 consécutifs
+          if (zeroScoreConsecutifs >= 5) {
+            stopScan = true;
+            break; 
+          }
         } else {
-          zeroScoreConsecutifs = 0;
+          err++;
+          if (err >= 6) {
+            stopScan = true;
+            break;
+          }
         }
-
-        listeMatchsPoule.unshift(data);
-        err = 0; // Réinitialiser le compteur d'erreurs 404
-
-        // Arrêt si 6 matchs consécutifs sont à 0-0
-        if (zeroScoreConsecutifs >= 6) {
-          break;
-        }
-      } else { 
-        err++; 
       }
-      currentId--;
+      currentId += 5;
+    }
+
+    // SCAN VERS L'ARRIÈRE (Par lot de 5)
+    err = 0; 
+    currentId = baseId - 1;
+    stopScan = false;
+    zeroScoreConsecutifs = (s1Init === 0 && s2Init === 0) ? 1 : 0;
+
+    while (!stopScan && err < 6 && currentId > 0) {
+      const batchPromises = [];
+      let batchSize = 0;
+      
+      // Préparation du lot (en reculant)
+      for (let i = 0; i < 5; i++) {
+        const idToCheck = currentId - i;
+        if (idToCheck > 0) {
+          batchPromises.push(fetchMatch(`${baseUrl}${idToCheck}${endUrl}`));
+          batchSize++;
+        }
+      }
+
+      if (batchSize === 0) break;
+
+      const resultats = await Promise.all(batchPromises);
+
+      for (let i = 0; i < resultats.length; i++) {
+        const data = resultats[i];
+        if (data) {
+          err = 0; 
+          const { s1, s2 } = ObtenirScoresMatch(data);
+
+          if (s1 === 0 && s2 === 0) {
+            zeroScoreConsecutifs++;
+          } else {
+            zeroScoreConsecutifs = 0;
+          }
+
+          listeMatchsPoule.unshift(data);
+
+          if (zeroScoreConsecutifs >= 5) {
+            stopScan = true;
+            break;
+          }
+        } else {
+          err++;
+          if (err >= 6) {
+            stopScan = true;
+            break;
+          }
+        }
+      }
+      currentId -= batchSize;
     }
 
     afficherStatus(`Terminé ! ${listeMatchsPoule.length} matchs trouvés.`, "success");
     
+    // Tri final par date
     listeMatchsPoule.sort((a, b) => {
       const dA = a.rematch?.rencontre?.date ? new Date(a.rematch.rencontre.date.replace(" ", "T")) : 0;
       const dB = b.rematch?.rencontre?.date ? new Date(b.rematch.rencontre.date.replace(" ", "T")) : 0;
