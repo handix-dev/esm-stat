@@ -19,7 +19,7 @@ const EQUIPES_CLUB = {
   "SM_C": {
     nom: "Senior Masculin C",
     saisons: {
-      "2026-2027": "https://www.ffhandball.fr/competitions/saison-2026-2027-22/regional/m004-1re-division-territoriale-masculine-32735/poule-192630/rencontre-2674902/",
+      "2026-2027": "https://www.ffhandball.fr/competitions/saison-2026-2027-22/regional/m004-1re-division-territoriale-masculine-32735/poule-195967/rencontre-2715012/",
       "2025-2026": "https://www.ffhandball.fr/competitions/saison-2025-2026-21/regional/m004-1re-division-territoriale-masculine-28930/poule-172193/rencontre-2429738/"
     }
   }
